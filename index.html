@@ -16,7 +16,7 @@
     .canvases { display: flex; gap: 14px; flex-wrap: wrap; }
     .cwrap { text-align: center; }
     .cwrap .t { font-size: 12px; opacity: 0.7; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-    canvas { display: block; border-radius: 12px; background: #07040f; width: 280px; height: 280px; max-width: 42vw; }
+    canvas { display: block; border-radius: 12px; background: #07040f; max-width: 92vw; height: auto; }
     .panel { width: 320px; max-width: 88vw; }
     .row { display: flex; align-items: center; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
     .label { font-size: 12px; opacity: 0.7; width: 100%; margin: 8px 0 2px; letter-spacing: 0.4px; text-transform: uppercase; }
@@ -53,10 +53,11 @@
         <div class="card panel">
             <div class="label">Veľkosť siete</div>
             <div class="row" id="archBtns">
-                <button data-arch="32,32">32·32</button>
-                <button data-arch="48,48,48" class="active">48·48·48</button>
-                <button data-arch="64,64,64">64·64·64</button>
-                <button data-arch="96,96">96·96</button>
+                <button data-arch="48,48,48">48·48·48</button>
+                <button data-arch="64,64,64" class="active">64·64·64</button>
+                <button data-arch="96,96,96">96·96·96</button>
+                <button data-arch="128,128">128·128</button>
+                <button data-arch="160,128,96">160·128·96</button>
             </div>
 
             <div class="label">Fourierove črty (ostrosť)</div>
@@ -142,8 +143,8 @@ function trainBatch(net, act, lr, B) {
     const gW = net.W.map(zerosLike), gB = net.B.map(b => b.map(() => 0)), L = net.W.length;
     let loss = 0;
     for (let b = 0; b < B; b++) {
-        const idx = Math.floor(Math.random() * NPIX), gx = idx % TR, gy = (idx / TR) | 0;
-        const x = gx / (TR - 1) * 2 - 1, y = gy / (TR - 1) * 2 - 1;
+        const idx = Math.floor(Math.random() * NPIX), gx = idx % TRW, gy = (idx / TRW) | 0;
+        const x = gx / (TRW - 1) * 2 - 1, y = gy / (TRH - 1) * 2 - 1;
         const { a, zs } = forward(net, encode(x, y), act), out = a[L];
         let delta = new Array(3);
         for (let i = 0; i < 3; i++) { const e = out[i] - target[idx * 3 + i]; loss += e * e; delta[i] = e * out[i] * (1 - out[i]); }
@@ -173,57 +174,65 @@ function encode(x, y) {
 function inDim() { return 2 + FREQS.length * 4; }
 function setFour(n) { FREQS = []; for (let k = 0; k < n; k++) FREQS.push(Math.pow(2, k)); }   // [1,2,4,8,16,...]
 
-// ==================== CIEĽ (obrázok) ====================
-const TR = 112;                       // rozlíšenie tréningového obrázka
-let target = null, NPIX = 0;
+// ==================== CIEĽ (obrázok) — pôvodný pomer strán + vyššie rozlíšenie ====================
+const TR_LONG = 168, PR_LONG = 168, DISP_LONG = 360;   // dlhšia strana: tréning / rekonštrukcia / displej
+let TRW = 0, TRH = 0, PRW = 0, PRH = 0, NPIX = 0, target = null;
 const targetCv = document.getElementById('target'), tdx = targetCv.getContext('2d');
 const reconCv = document.getElementById('recon'), rdx = reconCv.getContext('2d');
-const PR = 96;                         // rozlíšenie rekonštrukcie (potom sa vyhladí na displej)
-const reconImg = rdx.createImageData(PR, PR);
-const _rtmp = document.createElement('canvas'); _rtmp.width = _rtmp.height = PR;
-const _rtmpCtx = _rtmp.getContext('2d');
+let reconImg = null;
+const _rtmp = document.createElement('canvas'); const _rtmpCtx = _rtmp.getContext('2d');
 
 function loadImage() {
-    const tcan = document.createElement('canvas'); tcan.width = tcan.height = TR;
-    const tcx = tcan.getContext('2d');
     const img = new Image();
     img.onload = () => {
-        tcx.fillStyle = '#140a23'; tcx.fillRect(0, 0, TR, TR);
-        const s = Math.min(TR / img.width, TR / img.height), w = img.width * s, h = img.height * s;
-        tcx.drawImage(img, (TR - w) / 2, (TR - h) / 2, w, h);
-        const d = tcx.getImageData(0, 0, TR, TR).data;
-        target = new Float32Array(TR * TR * 3);
-        for (let i = 0; i < TR * TR; i++) { target[i * 3] = d[i * 4] / 255; target[i * 3 + 1] = d[i * 4 + 1] / 255; target[i * 3 + 2] = d[i * 4 + 2] / 255; }
-        NPIX = TR * TR;
-        tdx.imageSmoothingEnabled = true; tdx.drawImage(tcan, 0, 0, targetCv.width, targetCv.height);   // veľký náhľad cieľa
+        const ar = img.naturalWidth / img.naturalHeight;            // pomer strán obrázka
+        const fit = (long) => ar >= 1 ? [long, Math.round(long / ar)] : [Math.round(long * ar), long];
+        [TRW, TRH] = fit(TR_LONG); [PRW, PRH] = fit(PR_LONG);
+        NPIX = TRW * TRH;
+        const [dW, dH] = fit(DISP_LONG);
+        for (const c of [targetCv, reconCv]) { c.width = dW; c.height = dH; c.style.width = dW + 'px'; c.style.height = 'auto'; }
+        reconImg = rdx.createImageData(PRW, PRH);
+        _rtmp.width = PRW; _rtmp.height = PRH;
+        // navzorkuj cieľ na mriežku TRW×TRH (celý obrázok, žiadny letterbox)
+        const tcan = document.createElement('canvas'); tcan.width = TRW; tcan.height = TRH;
+        const tcx = tcan.getContext('2d'); tcx.drawImage(img, 0, 0, TRW, TRH);
+        const d = tcx.getImageData(0, 0, TRW, TRH).data;
+        target = new Float32Array(TRW * TRH * 3);
+        for (let i = 0; i < TRW * TRH; i++) { target[i * 3] = d[i * 4] / 255; target[i * 3 + 1] = d[i * 4 + 1] / 255; target[i * 3 + 2] = d[i * 4 + 2] / 255; }
+        tdx.imageSmoothingEnabled = true; tdx.drawImage(img, 0, 0, dW, dH);   // ostrý náhľad cieľa priamo z obrázka
         rebuild(); loop();
     };
     img.onerror = () => { document.getElementById('err').textContent = '⚠ oliver.png sa nenačítal (spusti cez server, nie file://).'; };
     img.src = 'oliver.png';
 }
 
-function drawRecon() {
-    const d = reconImg.data, L = net.W.length;
-    for (let gy = 0; gy < PR; gy++) for (let gx = 0; gx < PR; gx++) {
-        const x = gx / (PR - 1) * 2 - 1, y = gy / (PR - 1) * 2 - 1;
-        const o = forward(net, encode(x, y), act).a[L], i = (gy * PR + gx) * 4;
+// Progresívne (pásové) vykresľovanie rekonštrukcie: pár riadkov za snímok → vysoké rozlíšenie ostane plynulé
+let reconRow = 0;
+function rowsBudget() { return Math.max(4, Math.round(2400 / Math.max(1, PRW))); }
+function drawReconChunk(rows) {
+    if (!reconImg) return;
+    const d = reconImg.data, L = net.W.length, end = Math.min(PRH, reconRow + rows);
+    for (let gy = reconRow; gy < end; gy++) for (let gx = 0; gx < PRW; gx++) {
+        const x = gx / (PRW - 1) * 2 - 1, y = gy / (PRH - 1) * 2 - 1;
+        const o = forward(net, encode(x, y), act).a[L], i = (gy * PRW + gx) * 4;
         d[i] = o[0] * 255; d[i + 1] = o[1] * 255; d[i + 2] = o[2] * 255; d[i + 3] = 255;
     }
+    reconRow = end >= PRH ? 0 : end;
     _rtmpCtx.putImageData(reconImg, 0, 0);
     rdx.imageSmoothingEnabled = true;
     rdx.drawImage(_rtmp, 0, 0, reconCv.width, reconCv.height);
 }
+function drawReconFull() { reconRow = 0; drawReconChunk(PRH); }   // celá rekonštrukcia naraz (reset/rebuild)
 
 // ==================== STAV + SLUČKA ====================
-let net, act = ACT.relu, archStr = '48,48,48', lr = 0.01, speed = 3, epoch = 0, running = true, lastLoss = 0, frame = 0;
-const RENDER_EVERY = 2;
+let net, act = ACT.relu, archStr = '64,64,64', lr = 0.01, speed = 3, epoch = 0, running = true, lastLoss = 0;
 function arch() { return [inDim(), ...archStr.split(',').map(Number), 3]; }
 function countParams(n) { let p = 0; for (let l = 0; l < n.W.length; l++) p += n.W[l].length * (n.W[l][0].length + 1); return p; }
 
 function rebuild() {
     net = makeNet(arch()); epoch = 0; lastLoss = 0;
     document.getElementById('params').textContent = countParams(net).toLocaleString('sk');
-    if (target) drawRecon();
+    if (target) drawReconFull();
     updateStats();
 }
 function updateStats() {
@@ -233,9 +242,8 @@ function updateStats() {
 }
 function loop() {
     if (running && target) {
-        for (let s = 0; s < speed; s++) { lastLoss = trainBatch(net, act, lr, 400); epoch++; }
-        frame++;
-        if (frame % RENDER_EVERY === 0) drawRecon();
+        for (let s = 0; s < speed; s++) { lastLoss = trainBatch(net, act, lr, 350); epoch++; }
+        drawReconChunk(rowsBudget());   // progresívne: pás riadkov za snímok
         updateStats();
     }
     requestAnimationFrame(loop);
