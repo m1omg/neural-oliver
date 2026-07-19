@@ -4,12 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🖼️🧠 Neurónka sa učí Olivera</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif; background: #0a0618;
         color: #efe7ff; min-height: 100vh; padding: 18px; }
     h1 { font-size: clamp(19px, 4vw, 28px); text-shadow: 0 0 16px rgba(150,90,255,0.7); margin-bottom: 4px; }
-    .sub { opacity: 0.65; font-size: 13px; margin-bottom: 16px; max-width: 720px; line-height: 1.5; }
+    .sub { opacity: 0.65; font-size: 13px; margin-bottom: 16px; max-width: 760px; line-height: 1.5; }
     .wrap { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
     .card { background: rgba(28,14,52,0.7); border: 1px solid rgba(150,90,255,0.28);
         border-radius: 16px; padding: 16px; box-shadow: 0 0 30px rgba(110,60,200,0.25); }
@@ -17,72 +18,117 @@
     .cwrap { text-align: center; }
     .cwrap .t { font-size: 12px; opacity: 0.7; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
     canvas { display: block; border-radius: 12px; background: #07040f; max-width: 92vw; height: auto; }
-    .panel { width: 320px; max-width: 88vw; }
+    #chart { width: 100%; margin-top: 12px; }
+    .panel { width: 340px; max-width: 88vw; }
     .row { display: flex; align-items: center; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+    .row.disabled { opacity: 0.35; pointer-events: none; }
     .label { font-size: 12px; opacity: 0.7; width: 100%; margin: 8px 0 2px; letter-spacing: 0.4px; text-transform: uppercase; }
     button { cursor: pointer; border: 1px solid rgba(150,90,255,0.4); background: rgba(50,26,90,0.6);
         color: #efe7ff; border-radius: 9px; padding: 7px 12px; font-size: 13px; transition: 0.12s; }
     button:hover { background: rgba(90,50,150,0.8); }
     button.active { background: linear-gradient(135deg, #7a40c0, #b060ff); border-color: transparent; box-shadow: 0 0 12px rgba(176,96,255,0.6); }
     button.go { font-weight: bold; padding: 9px 16px; font-size: 14px; }
+    button.toggle { font-size: 12px; }
     input[type=range] { flex: 1; accent-color: #b060ff; min-width: 110px; }
     .val { font: bold 13px monospace; color: #d9c4ff; min-width: 54px; text-align: right; }
     .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 10px; }
     .stat { background: rgba(12,6,26,0.6); border: 1px solid rgba(150,90,255,0.2); border-radius: 9px; padding: 8px 10px; }
     .stat .k { font-size: 11px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat .v { font: bold 18px monospace; color: #7effc0; }
+    .stat .v { font: bold 16px monospace; color: #7effc0; }
     .hint { font-size: 12px; opacity: 0.62; margin-top: 12px; line-height: 1.5; }
     #err { color: #ff8080; font-size: 13px; margin-top: 10px; }
+    #dl { display: none; color: #7effc0; font-size: 13px; margin-top: 10px; }
 </style>
 </head>
 <body>
     <h1>🖼️🧠 Neurónka sa učí Olivera</h1>
-    <div class="sub">Malá sieť dostáva na vstup len súradnicu pixelu <b>(x, y)</b> a má uhádnuť jeho farbu <b>(R,G,B)</b>.
-        Trénovaním na obrázku sa postupne „naučí" celého Olivera — sleduj, ako sa z rozmazanej škvrny vykreslí portrét.
-        Trik na ostrosť: <b>Fourierove črty</b> (polohové kódovanie). Skús ich vypnúť a uvidíš rozmazanú kašu 🙂</div>
+    <div class="sub">Sieť dostáva na vstup len súradnicu pixelu <b>(x, y)</b> a má uhádnuť jeho farbu <b>(R,G,B)</b>.
+        Trénovaním na obrázku sa postupne „naučí" celého Olivera. Vyskúšaj <b>SIREN</b> (sínusové aktivácie),
+        <b>Gaussove Fourierove črty</b>, postupné frekvencie (coarse→fine), vzorkovanie podľa chyby, rôzne
+        optimalizátory a stratové funkcie — a sleduj mapu chýb a krivku straty naživo. Vieš aj nahrať vlastný obrázok 🙂</div>
 
     <div class="wrap">
-        <div class="card">
+        <div class="card" id="viewCard">
             <div class="canvases">
                 <div class="cwrap"><div class="t">🎯 Cieľ</div><canvas id="target" width="280" height="280"></canvas></div>
                 <div class="cwrap"><div class="t">🧠 Sieť kreslí</div><canvas id="recon" width="280" height="280"></canvas></div>
+                <div class="cwrap"><div class="t">🔥 Mapa chýb</div><canvas id="errmap" width="280" height="280"></canvas></div>
             </div>
+            <div class="cwrap" style="margin-top:12px"><div class="t">📉 Priebeh straty (log)</div><canvas id="chart" width="640" height="96"></canvas></div>
+            <a id="dl" download="neural-oliver.png">⬇ Uložiť HD render ako PNG</a>
             <div id="err"></div>
         </div>
 
         <div class="card panel">
-            <div class="label">Veľkosť siete</div>
+            <div class="label">Architektúra siete</div>
             <div class="row" id="archBtns">
-                <button data-arch="48,48,48">48·48·48</button>
-                <button data-arch="64,64,64" class="active">64·64·64</button>
-                <button data-arch="96,96,96">96·96·96</button>
-                <button data-arch="128,128">128·128</button>
-                <button data-arch="160,128,96">160·128·96</button>
+                <button data-arch="48,48,48">48³</button>
+                <button data-arch="64,64,64" class="active">64³</button>
+                <button data-arch="96,96,96">96³</button>
+                <button data-arch="128,128,128">128³</button>
+                <button data-arch="192,160,128">192·160·128</button>
             </div>
 
-            <div class="label">Fourierove črty (ostrosť)</div>
-            <div class="row" id="fourBtns">
-                <button data-four="0">Vyp</button>
-                <button data-four="3">Nízke</button>
-                <button data-four="4" class="active">Stredné</button>
-                <button data-four="5">Vysoké</button>
+            <div class="label">Kódovanie vstupu</div>
+            <div class="row" id="encBtns">
+                <button data-enc="none">Žiadne</button>
+                <button data-enc="four">Fourier</button>
+                <button data-enc="rff" class="active">Gauss RFF</button>
+            </div>
+
+            <div class="label">Detail kódovania (ostrosť)</div>
+            <div class="row" id="qualBtns">
+                <button data-q="0">Nízky</button>
+                <button data-q="1" class="active">Stredný</button>
+                <button data-q="2">Vysoký</button>
+                <button data-q="3">Ultra</button>
             </div>
 
             <div class="label">Aktivácia</div>
             <div class="row" id="actBtns">
                 <button data-act="tanh">tanh</button>
                 <button data-act="relu" class="active">ReLU</button>
+                <button data-act="sin">sin (SIREN)</button>
             </div>
 
-            <div class="label">Rýchlosť učenia (Adam)</div>
-            <div class="row"><input type="range" id="lr" min="-3.3" max="-1" step="0.05" value="-2"><span class="val" id="lrVal">0.010</span></div>
+            <div class="label">Optimalizátor</div>
+            <div class="row" id="optBtns">
+                <button data-opt="adam" class="active">Adam</button>
+                <button data-opt="adamw">AdamW</button>
+                <button data-opt="sgdm">SGD+hybnosť</button>
+            </div>
+
+            <div class="label">Stratová funkcia</div>
+            <div class="row" id="lossBtns">
+                <button data-loss="mse" class="active">MSE</button>
+                <button data-loss="l1">L1</button>
+                <button data-loss="huber">Huber</button>
+            </div>
+
+            <div class="label">Vylepšenia</div>
+            <div class="row">
+                <button class="toggle active" id="tImp">🎯 Vzorkovanie podľa chyby</button>
+                <button class="toggle" id="tAnneal">🌊 Postupné frekvencie</button>
+                <button class="toggle" id="tSched">📉 LR rozvrh</button>
+            </div>
+
+            <div class="label">Rýchlosť učenia</div>
+            <div class="row"><input type="range" id="lr" min="-3.5" max="-0.3" step="0.05" value="-2"><span class="val" id="lrVal">0.010</span></div>
 
             <div class="label">Krokov za snímok</div>
-            <div class="row"><input type="range" id="speed" min="1" max="12" step="1" value="3"><span class="val" id="speedVal">3</span></div>
+            <div class="row"><input type="range" id="speed" min="1" max="16" step="1" value="4"><span class="val" id="speedVal">4</span></div>
+
+            <div class="label">Veľkosť dávky (minibatch)</div>
+            <div class="row"><input type="range" id="batch" min="5" max="10" step="1" value="8"><span class="val" id="batchVal">256</span></div>
 
             <div class="row" style="margin-top:14px">
                 <button class="go active" id="play">⏸ Pauza</button>
                 <button class="go" id="reset">⟲ Reset</button>
+            </div>
+            <div class="row">
+                <button id="hd">✨ HD render</button>
+                <button id="upload">🖼 Vlastný obrázok</button>
+                <input type="file" id="file" accept="image/*" style="display:none">
             </div>
 
             <div class="stats">
@@ -90,164 +136,384 @@
                 <div class="stat"><div class="k">Strata (MSE)</div><div class="v" id="loss">—</div></div>
                 <div class="stat"><div class="k">PSNR</div><div class="v" id="psnr">—</div></div>
                 <div class="stat"><div class="k">Parametre</div><div class="v" id="params">—</div></div>
+                <div class="stat"><div class="k">Krokov/s</div><div class="v" id="sps">—</div></div>
+                <div class="stat"><div class="k">Efekt. LR</div><div class="v" id="efflr">—</div></div>
             </div>
 
-            <div class="hint">Vstup = 2 čísla, výstup = 3 (farba). Učí sa cez backpropagation + <b>Adam</b>. Väčšia sieť a vyššie Fourierove črty = ostrejšie, ale pomalšie.</div>
+            <div class="hint"><b>SIREN</b> = sínusové aktivácie so špeciálnou inicializáciou (ω₀=30) — ostré detaily priamo zo surových
+                súradníc, bez kódovania (prepne sa automaticky).
+                <b>Gauss RFF</b> = náhodné Fourierove črty (Tancik et al.). <b>Postupné frekvencie</b> = sieť sa najprv učí
+                hrubé tvary, detaily sa „odomykajú" postupne. <b>Vzorkovanie podľa chyby</b> = tréning sa sústredí na
+                pixely, kde sa sieť najviac mýli (sleduj mapu chýb!).</div>
         </div>
     </div>
 
 <script>
-// ==================== SIEŤ (od nuly, viac-výstupová, Adam) ====================
-const sigmoid = v => 1 / (1 + Math.exp(-v));
+'use strict';
+// ==================== JADRO: MLP od nuly (ploché Float32Array, bez knižníc) ====================
+const TAU = Math.PI * 2, W0 = 30;                     // W0 = SIREN omega_0
+function randn() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+
 const ACT = {
-    tanh: { f: Math.tanh, d: y => 1 - y * y, byZ: false },
-    relu: { f: z => z > 0 ? z : 0, d: z => z > 0 ? 1 : 0, byZ: true }
+    tanh: { f: Math.tanh, d: (z, a) => 1 - a * a },
+    relu: { f: z => z > 0 ? z : 0, d: (z, a) => z > 0 ? 1 : 0 },
+    sin:  { f: z => Math.sin(W0 * z), d: (z, a) => W0 * Math.cos(W0 * z) }
 };
-function zerosLike(M) { return M.map(r => r.map(() => 0)); }
+
 function makeNet(sizes) {
-    const W = [], B = [];
-    for (let l = 1; l < sizes.length; l++) {
-        const rows = sizes[l], cols = sizes[l - 1], scale = Math.sqrt(2 / (cols + rows)), w = [];
-        for (let i = 0; i < rows; i++) { const r = []; for (let j = 0; j < cols; j++) r.push((Math.random() * 2 - 1) * scale); w.push(r); }
-        W.push(w); B.push(new Array(rows).fill(0));
-    }
-    return { sizes, W, B, mW: W.map(zerosLike), vW: W.map(zerosLike), mB: B.map(b => b.map(() => 0)), vB: B.map(b => b.map(() => 0)), t: 0 };
-}
-function forward(net, x, act) {
-    const a = [x], zs = [], L = net.W.length;
+    const L = sizes.length - 1;
+    const net = { sizes, W: [], B: [], mW: [], vW: [], mB: [], vB: [], gW: [], gB: [], a: [], z: [], delta: [], t: 0 };
+    net.a.push(new Float32Array(sizes[0]));
     for (let l = 0; l < L; l++) {
-        const w = net.W[l], b = net.B[l], prev = a[l], z = new Array(w.length), out = new Array(w.length);
-        for (let i = 0; i < w.length; i++) { let s = b[i]; const wi = w[i]; for (let j = 0; j < wi.length; j++) s += wi[j] * prev[j]; z[i] = s; }
-        const isOut = l === L - 1;
-        for (let i = 0; i < z.length; i++) out[i] = isOut ? sigmoid(z[i]) : act.f(z[i]);
-        zs.push(z); a.push(out);
+        const rows = sizes[l + 1], cols = sizes[l], w = new Float32Array(rows * cols);
+        // inicializácia podľa aktivácie: SIREN (Sitzmann et al.), He pre ReLU, Xavier pre tanh
+        let s;
+        if (actName === 'sin') s = l === 0 ? 1 / cols : Math.sqrt(6 / cols) / W0;
+        else if (actName === 'relu') s = Math.sqrt(2 / cols);
+        else s = Math.sqrt(6 / (cols + rows));
+        for (let i = 0; i < w.length; i++) w[i] = actName === 'relu' ? randn() * s : (Math.random() * 2 - 1) * s;
+        net.W.push(w); net.B.push(new Float32Array(rows));
+        net.mW.push(new Float32Array(rows * cols)); net.vW.push(new Float32Array(rows * cols));
+        net.mB.push(new Float32Array(rows)); net.vB.push(new Float32Array(rows));
+        net.gW.push(new Float32Array(rows * cols)); net.gB.push(new Float32Array(rows));
+        net.a.push(new Float32Array(rows)); net.z.push(new Float32Array(rows)); net.delta.push(new Float32Array(rows));
     }
-    return { a, zs };
+    return net;
 }
-function adamUpdate(net, gW, gB, lr, invB) {
-    net.t++; const b1 = 0.9, b2 = 0.999, eps = 1e-8, c1 = 1 - Math.pow(b1, net.t), c2 = 1 - Math.pow(b2, net.t);
-    for (let l = 0; l < net.W.length; l++) for (let i = 0; i < net.W[l].length; i++) {
-        let g = gB[l][i] * invB;
-        let m = net.mB[l][i] = b1 * net.mB[l][i] + (1 - b1) * g, v = net.vB[l][i] = b2 * net.vB[l][i] + (1 - b2) * g * g;
-        net.B[l][i] -= lr * (m / c1) / (Math.sqrt(v / c2) + eps);
-        const wl = net.W[l][i], gl = gW[l][i], mw = net.mW[l][i], vw = net.vW[l][i];
-        for (let j = 0; j < wl.length; j++) {
-            g = gl[j] * invB;
-            const mm = mw[j] = b1 * mw[j] + (1 - b1) * g, vv = vw[j] = b2 * vw[j] + (1 - b2) * g * g;
-            wl[j] -= lr * (mm / c1) / (Math.sqrt(vv / c2) + eps);
+
+// dopredný prechod — vstup už zakódovaný v net.a[0]
+function fwd() {
+    const L = net.W.length, act = ACT[actName].f;
+    for (let l = 0; l < L; l++) {
+        const rows = net.sizes[l + 1], cols = net.sizes[l], W = net.W[l], Bv = net.B[l],
+              prev = net.a[l], zz = net.z[l], out = net.a[l + 1], isOut = l === L - 1;
+        for (let i = 0; i < rows; i++) {
+            let s = Bv[i]; const off = i * cols;
+            for (let j = 0; j < cols; j++) s += W[off + j] * prev[j];
+            zz[i] = s; out[i] = isOut ? 1 / (1 + Math.exp(-s)) : act(s);
+        }
+    }
+    return net.a[L];
+}
+
+function applyGrads(lr, invB) {
+    net.t++;
+    const L = net.W.length;
+    if (optName === 'sgdm') {
+        const mu = 0.9;
+        for (let l = 0; l < L; l++) {
+            const W = net.W[l], g = net.gW[l], m = net.mW[l];
+            for (let i = 0; i < W.length; i++) { const mm = m[i] = mu * m[i] + g[i] * invB; W[i] -= lr * mm; }
+            const B = net.B[l], gb = net.gB[l], mb = net.mB[l];
+            for (let i = 0; i < B.length; i++) { const mm = mb[i] = mu * mb[i] + gb[i] * invB; B[i] -= lr * mm; }
+        }
+        return;
+    }
+    const b1 = 0.9, b2 = 0.999, eps = 1e-8, c1 = 1 - Math.pow(b1, net.t), c2 = 1 - Math.pow(b2, net.t);
+    const wd = optName === 'adamw' ? 1e-4 : 0;   // AdamW: oddelený weight decay (len váhy, nie biasy)
+    for (let l = 0; l < L; l++) {
+        const W = net.W[l], g = net.gW[l], m = net.mW[l], v = net.vW[l];
+        for (let i = 0; i < W.length; i++) {
+            const gg = g[i] * invB;
+            const mm = m[i] = b1 * m[i] + (1 - b1) * gg, vv = v[i] = b2 * v[i] + (1 - b2) * gg * gg;
+            W[i] -= lr * ((mm / c1) / (Math.sqrt(vv / c2) + eps) + wd * W[i]);
+        }
+        const B = net.B[l], gb = net.gB[l], mb = net.mB[l], vb = net.vB[l];
+        for (let i = 0; i < B.length; i++) {
+            const gg = gb[i] * invB;
+            const mm = mb[i] = b1 * mb[i] + (1 - b1) * gg, vv = vb[i] = b2 * vb[i] + (1 - b2) * gg * gg;
+            B[i] -= lr * (mm / c1) / (Math.sqrt(vv / c2) + eps);
         }
     }
 }
-// minibatch náhodných pixelov; MSE + sigmoid výstup
-function trainBatch(net, act, lr, B) {
-    const gW = net.W.map(zerosLike), gB = net.B.map(b => b.map(() => 0)), L = net.W.length;
-    let loss = 0;
-    for (let b = 0; b < B; b++) {
-        const idx = Math.floor(Math.random() * NPIX), gx = idx % TRW, gy = (idx / TRW) | 0;
-        const x = gx / (TRW - 1) * 2 - 1, y = gy / (TRH - 1) * 2 - 1;
-        const { a, zs } = forward(net, encode(x, y), act), out = a[L];
-        let delta = new Array(3);
-        for (let i = 0; i < 3; i++) { const e = out[i] - target[idx * 3 + i]; loss += e * e; delta[i] = e * out[i] * (1 - out[i]); }
+
+// minibatch: voliteľne vzorkuje pixely podľa chyby („power of 4 choices"); MSE/L1/Huber
+function trainBatch(Bsz, effLr) {
+    const L = net.W.length, dAct = ACT[actName].d;
+    for (let l = 0; l < L; l++) { net.gW[l].fill(0); net.gB[l].fill(0); }
+    let mseSum = 0;
+    for (let b = 0; b < Bsz; b++) {
+        let idx = (Math.random() * NPIX) | 0;
+        if (impOn) { let be = errMap[idx];
+            for (let c = 0; c < 3; c++) { const j = (Math.random() * NPIX) | 0; if (errMap[j] > be) { be = errMap[j]; idx = j; } } }
+        const gx = idx % TRW, gy = (idx / TRW) | 0;
+        encodeInto(gx / (TRW - 1) * 2 - 1, gy / (TRH - 1) * 2 - 1, net.a[0]);
+        const out = fwd(), dOut = net.delta[L - 1];
+        let e2 = 0;
+        for (let i = 0; i < 3; i++) {
+            const e = out[i] - target[idx * 3 + i]; e2 += e * e;
+            let g;
+            if (lossName === 'mse') g = e;
+            else if (lossName === 'l1') g = e > 0 ? 0.35 : e < 0 ? -0.35 : 0;
+            else { const dl = 0.08; g = Math.abs(e) <= dl ? e : dl * (e > 0 ? 1 : -1); }
+            dOut[i] = g * out[i] * (1 - out[i]);
+        }
+        mseSum += e2; errMap[idx] = e2;
         for (let l = L - 1; l >= 0; l--) {
-            const prev = a[l];
-            for (let i = 0; i < net.W[l].length; i++) { gB[l][i] += delta[i]; const gw = gW[l][i], di = delta[i]; for (let j = 0; j < prev.length; j++) gw[j] += di * prev[j]; }
+            const rows = net.sizes[l + 1], cols = net.sizes[l], W = net.W[l],
+                  prev = net.a[l], del = net.delta[l], gWl = net.gW[l], gBl = net.gB[l];
+            for (let i = 0; i < rows; i++) {
+                const di = del[i]; gBl[i] += di; const off = i * cols;
+                for (let j = 0; j < cols; j++) gWl[off + j] += di * prev[j];
+            }
             if (l > 0) {
-                const nd = new Array(net.W[l][0].length).fill(0);
-                for (let i = 0; i < net.W[l].length; i++) { const wi = net.W[l][i], di = delta[i]; for (let k = 0; k < nd.length; k++) nd[k] += wi[k] * di; }
-                const z = zs[l - 1], ap = a[l];
-                for (let k = 0; k < nd.length; k++) nd[k] *= act.byZ ? act.d(z[k]) : act.d(ap[k]);
-                delta = nd;
+                const nd = net.delta[l - 1], zz = net.z[l - 1], aa = net.a[l];
+                nd.fill(0);
+                for (let i = 0; i < rows; i++) {
+                    const di = del[i]; if (di === 0) continue; const off = i * cols;
+                    for (let k = 0; k < cols; k++) nd[k] += W[off + k] * di;
+                }
+                for (let k = 0; k < cols; k++) nd[k] *= dAct(zz[k], aa[k]);
             }
         }
     }
-    adamUpdate(net, gW, gB, lr, 1 / B);
-    return loss / (B * 3);
+    applyGrads(effLr, 1 / Bsz);
+    return mseSum / (Bsz * 3);
 }
 
-// ---- Fourierove (polohové) črty: bez nich vie MLP len rozmazané plochy (spektrálny bias) ----
-let FREQS = [1, 2, 4, 8];
-function encode(x, y) {
-    const f = [x, y];
-    for (let i = 0; i < FREQS.length; i++) { const a = FREQS[i] * Math.PI; f.push(Math.sin(a * x), Math.cos(a * x), Math.sin(a * y), Math.cos(a * y)); }
-    return f;
-}
-function inDim() { return 2 + FREQS.length * 4; }
-function setFour(n) { FREQS = []; for (let k = 0; k < n; k++) FREQS.push(Math.pow(2, k)); }   // [1,2,4,8,16,...]
+// ==================== KÓDOVANIE VSTUPU (polohové kódovanie) ====================
+// four = klasické osové sin/cos frekvencie; rff = Gaussove náhodné Fourierove črty (Tancik et al. 2020)
+let encMode = 'rff', qual = 1;
+const FOUR_LV = [3, 4, 5, 6];                               // počet frekvenčných pásiem
+const RFF_CFG = [[32, 3], [64, 5], [96, 8], [128, 12]];     // [počet čŕt, sigma]
+let FREQS = [], Bmat = null, rffK = 0, featW = new Float32Array(0), rffBand = null;
 
-// ==================== CIEĽ (obrázok) — pôvodný pomer strán + vyššie rozlíšenie ====================
-const TR_LONG = 168, PR_LONG = 168, DISP_LONG = 360;   // dlhšia strana: tréning / rekonštrukcia / displej
-let TRW = 0, TRH = 0, PRW = 0, PRH = 0, NPIX = 0, target = null;
+function setupEncoding() {
+    if (encMode === 'four') {
+        const L = FOUR_LV[qual]; FREQS = []; for (let k = 0; k < L; k++) FREQS.push(2 ** k);
+        featW = new Float32Array(L).fill(1);
+    } else if (encMode === 'rff') {
+        const [k, sg] = RFF_CFG[qual]; rffK = k; Bmat = new Float32Array(k * 2);
+        const norms = [];
+        for (let j = 0; j < k; j++) { const bx = randn() * sg, by = randn() * sg; Bmat[2 * j] = bx; Bmat[2 * j + 1] = by; norms.push([Math.hypot(bx, by), j]); }
+        norms.sort((a, b) => a[0] - b[0]); rffBand = new Uint8Array(k);
+        for (let r = 0; r < k; r++) rffBand[norms[r][1]] = Math.min(5, (r * 6 / k) | 0);
+        featW = new Float32Array(k).fill(1);
+    } else featW = new Float32Array(0);
+}
+function inDim() { return encMode === 'four' ? 2 + FREQS.length * 4 : encMode === 'rff' ? 2 + rffK * 2 : 2; }
+function encodeInto(x, y, out) {
+    out[0] = x; out[1] = y; let p = 2;
+    if (encMode === 'four') for (let k = 0; k < FREQS.length; k++) {
+        const a = FREQS[k] * Math.PI, w = featW[k];
+        out[p++] = Math.sin(a * x) * w; out[p++] = Math.cos(a * x) * w;
+        out[p++] = Math.sin(a * y) * w; out[p++] = Math.cos(a * y) * w;
+    } else if (encMode === 'rff') for (let j = 0; j < rffK; j++) {
+        const t = TAU * (Bmat[2 * j] * x + Bmat[2 * j + 1] * y), w = featW[j];
+        out[p++] = Math.sin(t) * w; out[p++] = Math.cos(t) * w;
+    }
+}
+// coarse→fine: vysoké frekvencie sa „odomykajú" postupne (à la BARF)
+const ANNEAL_STEPS = 2500;
+const winFn = t => { t = Math.max(0, Math.min(1, t)); return 0.5 * (1 - Math.cos(Math.PI * t)); };
+function updateAnneal() {
+    if (!featW.length) return;
+    if (!annealOn) { featW.fill(1); return; }
+    const nb = encMode === 'four' ? FREQS.length : 6;
+    const alpha = nb * Math.min(1, epoch / ANNEAL_STEPS);
+    if (encMode === 'four') for (let k = 0; k < FREQS.length; k++) featW[k] = winFn(alpha - k);
+    else for (let j = 0; j < rffK; j++) featW[j] = winFn(alpha - rffBand[j]);
+}
+
+// ==================== CIEĽ (obrázok) — pôvodný pomer strán ====================
+const RES_LONG = 168, DISP_LONG = 360;    // tréningová/rekonštrukčná mriežka a veľkosť náhľadu
+let TRW = 0, TRH = 0, NPIX = 0, target = null, errMap = null, dispW = 0, dispH = 0;
 const targetCv = document.getElementById('target'), tdx = targetCv.getContext('2d');
 const reconCv = document.getElementById('recon'), rdx = reconCv.getContext('2d');
-let reconImg = null;
-const _rtmp = document.createElement('canvas'); const _rtmpCtx = _rtmp.getContext('2d');
+const errCv = document.getElementById('errmap'), edx = errCv.getContext('2d');
+const chartCv = document.getElementById('chart'), cdx = chartCv.getContext('2d');
+let reconImg = null, errImg = null;
+const _rtmp = document.createElement('canvas'), _rtmpCtx = _rtmp.getContext('2d');
+const _etmp = document.createElement('canvas'), _etmpCtx = _etmp.getContext('2d');
 
+function setupImage(img) {
+    const ar = img.naturalWidth / img.naturalHeight;
+    const fit = long => ar >= 1 ? [long, Math.round(long / ar)] : [Math.round(long * ar), long];
+    [TRW, TRH] = fit(RES_LONG); NPIX = TRW * TRH;
+    [dispW, dispH] = fit(DISP_LONG);
+    for (const c of [targetCv, reconCv, errCv]) { c.width = dispW; c.height = dispH; c.style.width = dispW + 'px'; c.style.height = 'auto'; }
+    reconImg = rdx.createImageData(TRW, TRH); errImg = edx.createImageData(TRW, TRH);
+    _rtmp.width = TRW; _rtmp.height = TRH; _etmp.width = TRW; _etmp.height = TRH;
+    const tcan = document.createElement('canvas'); tcan.width = TRW; tcan.height = TRH;
+    const tcx = tcan.getContext('2d'); tcx.drawImage(img, 0, 0, TRW, TRH);
+    const d = tcx.getImageData(0, 0, TRW, TRH).data;
+    target = new Float32Array(NPIX * 3);
+    for (let i = 0; i < NPIX; i++) { target[i * 3] = d[i * 4] / 255; target[i * 3 + 1] = d[i * 4 + 1] / 255; target[i * 3 + 2] = d[i * 4 + 2] / 255; }
+    errMap = new Float32Array(NPIX).fill(1);
+    tdx.imageSmoothingEnabled = true; tdx.drawImage(img, 0, 0, dispW, dispH);
+    document.getElementById('err').textContent = '';
+    rebuild();
+}
 function loadImage() {
     const img = new Image();
-    img.onload = () => {
-        const ar = img.naturalWidth / img.naturalHeight;            // pomer strán obrázka
-        const fit = (long) => ar >= 1 ? [long, Math.round(long / ar)] : [Math.round(long * ar), long];
-        [TRW, TRH] = fit(TR_LONG); [PRW, PRH] = fit(PR_LONG);
-        NPIX = TRW * TRH;
-        const [dW, dH] = fit(DISP_LONG);
-        for (const c of [targetCv, reconCv]) { c.width = dW; c.height = dH; c.style.width = dW + 'px'; c.style.height = 'auto'; }
-        reconImg = rdx.createImageData(PRW, PRH);
-        _rtmp.width = PRW; _rtmp.height = PRH;
-        // navzorkuj cieľ na mriežku TRW×TRH (celý obrázok, žiadny letterbox)
-        const tcan = document.createElement('canvas'); tcan.width = TRW; tcan.height = TRH;
-        const tcx = tcan.getContext('2d'); tcx.drawImage(img, 0, 0, TRW, TRH);
-        const d = tcx.getImageData(0, 0, TRW, TRH).data;
-        target = new Float32Array(TRW * TRH * 3);
-        for (let i = 0; i < TRW * TRH; i++) { target[i * 3] = d[i * 4] / 255; target[i * 3 + 1] = d[i * 4 + 1] / 255; target[i * 3 + 2] = d[i * 4 + 2] / 255; }
-        tdx.imageSmoothingEnabled = true; tdx.drawImage(img, 0, 0, dW, dH);   // ostrý náhľad cieľa priamo z obrázka
-        rebuild(); loop();
-    };
+    img.onload = () => { setupImage(img); loop(); };
     img.onerror = () => { document.getElementById('err').textContent = '⚠ oliver.png sa nenačítal (spusti cez server, nie file://).'; };
     img.src = 'oliver.png';
 }
 
-// Progresívne (pásové) vykresľovanie rekonštrukcie: pár riadkov za snímok → vysoké rozlíšenie ostane plynulé
+// ---- mapa chýb: magma farebná škála
+const MAGMA = [[0, 0, 4], [59, 15, 112], [140, 41, 129], [247, 112, 92], [252, 253, 191]];
+function heatInto(t, d, i) {
+    t = Math.max(0, Math.min(1, t));
+    const s = t * 4, k = Math.min(3, s | 0), f = s - k, c0 = MAGMA[k], c1 = MAGMA[k + 1];
+    d[i] = c0[0] + (c1[0] - c0[0]) * f; d[i + 1] = c0[1] + (c1[1] - c0[1]) * f; d[i + 2] = c0[2] + (c1[2] - c0[2]) * f; d[i + 3] = 255;
+}
+
+// Progresívne (pásové) vykresľovanie: pár riadkov za snímok
 let reconRow = 0;
-function rowsBudget() { return Math.max(4, Math.round(2400 / Math.max(1, PRW))); }
+function rowsBudget() { return Math.max(4, Math.round(2400 / Math.max(1, TRW))); }
 function drawReconChunk(rows) {
     if (!reconImg) return;
-    const d = reconImg.data, L = net.W.length, end = Math.min(PRH, reconRow + rows);
-    for (let gy = reconRow; gy < end; gy++) for (let gx = 0; gx < PRW; gx++) {
-        const x = gx / (PRW - 1) * 2 - 1, y = gy / (PRH - 1) * 2 - 1;
-        const o = forward(net, encode(x, y), act).a[L], i = (gy * PRW + gx) * 4;
-        d[i] = o[0] * 255; d[i + 1] = o[1] * 255; d[i + 2] = o[2] * 255; d[i + 3] = 255;
+    const d = reconImg.data, ed = errImg.data, end = Math.min(TRH, reconRow + rows), L = net.W.length;
+    for (let gy = reconRow; gy < end; gy++) for (let gx = 0; gx < TRW; gx++) {
+        encodeInto(gx / (TRW - 1) * 2 - 1, gy / (TRH - 1) * 2 - 1, net.a[0]);
+        const o = fwd(), pi = gy * TRW + gx, i4 = pi * 4, ti = pi * 3;
+        d[i4] = o[0] * 255; d[i4 + 1] = o[1] * 255; d[i4 + 2] = o[2] * 255; d[i4 + 3] = 255;
+        let e2 = 0;
+        for (let c = 0; c < 3; c++) { const e = o[c] - target[ti + c]; e2 += e * e; }
+        errMap[pi] = e2;
+        heatInto(Math.sqrt(e2 / 3) * 3, ed, i4);
     }
-    reconRow = end >= PRH ? 0 : end;
+    reconRow = end >= TRH ? 0 : end;
     _rtmpCtx.putImageData(reconImg, 0, 0);
-    rdx.imageSmoothingEnabled = true;
-    rdx.drawImage(_rtmp, 0, 0, reconCv.width, reconCv.height);
+    rdx.imageSmoothingEnabled = true; rdx.drawImage(_rtmp, 0, 0, reconCv.width, reconCv.height);
+    _etmpCtx.putImageData(errImg, 0, 0);
+    edx.imageSmoothingEnabled = true; edx.drawImage(_etmp, 0, 0, errCv.width, errCv.height);
 }
-function drawReconFull() { reconRow = 0; drawReconChunk(PRH); }   // celá rekonštrukcia naraz (reset/rebuild)
+function drawReconFull() { reconRow = 0; drawReconChunk(TRH); }
+
+// ---- krivka straty (log škála, EMA vyhladenie, adaptívne riedenie histórie)
+let lossHist = [], smoothL = null, histStride = 1, strideCnt = 0;
+function pushLoss(v) {
+    smoothL = smoothL === null ? v : smoothL * 0.97 + v * 0.03;
+    if (++strideCnt >= histStride) {
+        strideCnt = 0; lossHist.push(smoothL);
+        if (lossHist.length > 420) { lossHist = lossHist.filter((_, i) => i % 2 === 0); histStride *= 2; }
+    }
+}
+function drawChart() {
+    const W = chartCv.width, H = chartCv.height, g = cdx;
+    g.clearRect(0, 0, W, H);
+    if (lossHist.length < 2) return;
+    let mn = Infinity, mx = -Infinity;
+    for (const v of lossHist) { const t = Math.log10(Math.max(1e-6, v)); if (t < mn) mn = t; if (t > mx) mx = t; }
+    if (mx - mn < 0.4) { const c = (mx + mn) / 2; mn = c - 0.2; mx = c + 0.2; }
+    const pad = 0.06 * (mx - mn); mn -= pad; mx += pad;
+    const Y = t => H - (t - mn) / (mx - mn) * H;
+    g.strokeStyle = 'rgba(176,96,255,0.18)'; g.fillStyle = 'rgba(239,231,255,0.4)'; g.font = '9px monospace'; g.lineWidth = 1;
+    for (let e = Math.ceil(mn); e <= Math.floor(mx); e++) {
+        const y = Y(e);
+        g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+        g.fillText('1e' + e, 4, y - 3);
+    }
+    g.beginPath();
+    for (let i = 0; i < lossHist.length; i++) {
+        const x = i / (lossHist.length - 1) * W, y = Y(Math.log10(Math.max(1e-6, lossHist[i])));
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+    }
+    g.strokeStyle = '#b060ff'; g.lineWidth = 2; g.shadowColor = 'rgba(176,96,255,0.7)'; g.shadowBlur = 6; g.stroke(); g.shadowBlur = 0;
+}
 
 // ==================== STAV + SLUČKA ====================
-let net, act = ACT.relu, archStr = '64,64,64', lr = 0.01, speed = 3, epoch = 0, running = true, lastLoss = 0;
+let net, actName = 'relu', optName = 'adam', lossName = 'mse', archStr = '64,64,64';
+let lr = 0.01, speed = 4, batch = 256, epoch = 0, running = true, lastLoss = 0;
+let impOn = true, annealOn = false, schedOn = false;
+let stepAcc = 0, spsT = performance.now(), sps = 0, loopOn = false;
+
 function arch() { return [inDim(), ...archStr.split(',').map(Number), 3]; }
-function countParams(n) { let p = 0; for (let l = 0; l < n.W.length; l++) p += n.W[l].length * (n.W[l][0].length + 1); return p; }
+function countParams(n) { let p = 0; for (let l = 0; l < n.W.length; l++) p += n.W[l].length + n.B[l].length; return p; }
 
 function rebuild() {
+    setupEncoding();
     net = makeNet(arch()); epoch = 0; lastLoss = 0;
+    lossHist = []; smoothL = null; histStride = 1; strideCnt = 0;
+    if (errMap) errMap.fill(1);
     document.getElementById('params').textContent = countParams(net).toLocaleString('sk');
-    if (target) drawReconFull();
-    updateStats();
+    if (target) { updateAnneal(); drawReconFull(); drawChart(); }
+    updateStats(lr);
 }
-function updateStats() {
+function resetOpt() {   // zmena optimalizátora: váhy ostávajú, momenty sa nulujú
+    if (!net) return;
+    for (let l = 0; l < net.W.length; l++) { net.mW[l].fill(0); net.vW[l].fill(0); net.mB[l].fill(0); net.vB[l].fill(0); }
+    net.t = 0;
+}
+
+// warmup + kosínusový pokles
+const WARM = 300, DECAY_END = 20000, LR_FLOOR = 0.08;
+function schedLr() {
+    if (!schedOn) return lr;
+    if (epoch < WARM) return lr * Math.max(0.05, epoch / WARM);
+    if (epoch >= DECAY_END) return lr * LR_FLOOR;
+    const p = (epoch - WARM) / (DECAY_END - WARM);
+    return lr * (LR_FLOOR + (1 - LR_FLOOR) * 0.5 * (1 + Math.cos(Math.PI * p)));
+}
+
+function updateStats(effLr) {
     document.getElementById('epoch').textContent = epoch.toLocaleString('sk');
     document.getElementById('loss').textContent = epoch ? lastLoss.toFixed(4) : '—';
     document.getElementById('psnr').textContent = epoch ? (10 * Math.log10(1 / Math.max(1e-6, lastLoss))).toFixed(1) + ' dB' : '—';
+    document.getElementById('efflr').textContent = effLr.toPrecision(2);
+    document.getElementById('sps').textContent = epoch ? '' + Math.round(sps) : '—';
 }
 function loop() {
-    if (running && target) {
-        for (let s = 0; s < speed; s++) { lastLoss = trainBatch(net, act, lr, 350); epoch++; }
-        drawReconChunk(rowsBudget());   // progresívne: pás riadkov za snímok
-        updateStats();
-    }
-    requestAnimationFrame(loop);
+    if (loopOn) return; loopOn = true;
+    (function frame() {
+        if (running && target) {
+            updateAnneal();
+            const eff = schedLr();
+            for (let s = 0; s < speed; s++) { lastLoss = trainBatch(batch, eff); epoch++; stepAcc++; pushLoss(lastLoss); }
+            const now = performance.now();
+            if (now - spsT > 500) { sps = stepAcc / ((now - spsT) / 1000); stepAcc = 0; spsT = now; }
+            drawReconChunk(rowsBudget());
+            updateStats(eff);
+            drawChart();
+        }
+        requestAnimationFrame(frame);
+    })();
 }
+
+// ==================== HD RENDER (spojitá reprezentácia → ľubovoľné rozlíšenie) ====================
+let hdBusy = false;
+const hdBtn = document.getElementById('hd'), dlLink = document.getElementById('dl');
+hdBtn.addEventListener('click', () => {
+    if (!target || hdBusy) return;
+    hdBusy = true; running = false; syncPlay();
+    const W = dispW * 2, H = dispH * 2;
+    const oc = document.createElement('canvas'); oc.width = W; oc.height = H;
+    const octx = oc.getContext('2d'), img = octx.createImageData(W, 1);
+    let row = 0;
+    (function step() {
+        const t0 = performance.now();
+        while (row < H && performance.now() - t0 < 14) {
+            const y = row / (H - 1) * 2 - 1, d = img.data;
+            for (let gx = 0; gx < W; gx++) {
+                encodeInto(gx / (W - 1) * 2 - 1, y, net.a[0]);
+                const o = fwd(), i4 = gx * 4;
+                d[i4] = o[0] * 255; d[i4 + 1] = o[1] * 255; d[i4 + 2] = o[2] * 255; d[i4 + 3] = 255;
+            }
+            octx.putImageData(img, 0, row); row++;
+        }
+        if (row < H) { hdBtn.textContent = '✨ Render… ' + Math.round(row / H * 100) + '%'; requestAnimationFrame(step); return; }
+        reconCv.width = W; reconCv.height = H;                     // 2× backing store → ostrý náhľad
+        rdx.drawImage(oc, 0, 0, W, H);
+        dlLink.href = oc.toDataURL('image/png'); dlLink.style.display = 'inline-block';
+        hdBtn.textContent = '✨ HD render'; hdBusy = false;
+    })();
+});
+
+// ==================== VLASTNÝ OBRÁZOK (upload / drag & drop) ====================
+const fileInput = document.getElementById('file');
+document.getElementById('upload').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadUserFile(fileInput.files[0]); });
+function loadUserFile(file) {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); setupImage(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); document.getElementById('err').textContent = '⚠ Tento súbor sa nedá načítať ako obrázok.'; };
+    img.src = url;
+}
+const viewCard = document.getElementById('viewCard');
+viewCard.addEventListener('dragover', e => e.preventDefault());
+viewCard.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) loadUserFile(f); });
 
 // ==================== OVLÁDANIE ====================
 function bindGroup(id, attr, cb) {
@@ -256,16 +522,41 @@ function bindGroup(id, attr, cb) {
         b.classList.add('active'); cb(b.dataset[attr]);
     }));
 }
+const lrSlider = document.getElementById('lr');
+function nudgeLr(exp) { lrSlider.value = exp; lrSlider.dispatchEvent(new Event('input')); }
+function syncQualUI() { document.getElementById('qualBtns').parentNode; document.querySelector('#qualBtns').classList.toggle('disabled', encMode === 'none'); }
+
 bindGroup('archBtns', 'arch', v => { archStr = v; rebuild(); });
-bindGroup('fourBtns', 'four', v => { setFour(+v); rebuild(); });        // zmena vstupu → nová sieť
-bindGroup('actBtns', 'act', v => { act = ACT[v]; rebuild(); });
+bindGroup('encBtns', 'enc', v => { encMode = v; syncQualUI(); rebuild(); });
+bindGroup('qualBtns', 'q', v => { qual = +v; rebuild(); });
+bindGroup('actBtns', 'act', v => {
+    actName = v;
+    if (v === 'sin') {   // SIREN pracuje priamo so surovými (x,y) — kódovanie by mu len škodilo
+        encMode = 'none'; syncQualUI(); nudgeLr(-3.5);
+        document.querySelectorAll('#encBtns button').forEach(o => o.classList.toggle('active', o.dataset.enc === 'none'));
+    } else if (lr < 0.001) nudgeLr(-2);
+    rebuild();
+});
+bindGroup('optBtns', 'opt', v => { optName = v; resetOpt(); if (v === 'sgdm' && lr < 0.05) nudgeLr(-0.7); else if (v !== 'sgdm' && lr > 0.05) nudgeLr(-2); });
+bindGroup('lossBtns', 'loss', v => { lossName = v; });
+syncQualUI();
+
+function bindToggle(id, cb) {
+    const b = document.getElementById(id);
+    b.addEventListener('click', () => { const on = !b.classList.contains('active'); b.classList.toggle('active', on); cb(on); });
+}
+bindToggle('tImp', on => impOn = on);
+bindToggle('tAnneal', on => annealOn = on);
+bindToggle('tSched', on => schedOn = on);
+
 function slider(id, valId, fmt, cb) {
     const el = document.getElementById(id), out = document.getElementById(valId);
     const upd = () => { const v = cb(parseFloat(el.value)); out.textContent = fmt(v); };
     el.addEventListener('input', upd); upd();
 }
-slider('lr', 'lrVal', v => v.toFixed(3), v => (lr = Math.pow(10, v), lr));
+slider('lr', 'lrVal', v => v < 0.01 ? v.toFixed(4) : v.toFixed(3), v => (lr = Math.pow(10, v), lr));
 slider('speed', 'speedVal', v => '' + v, v => (speed = v, v));
+slider('batch', 'batchVal', v => '' + v, v => (batch = Math.pow(2, v), batch));
 
 const playBtn = document.getElementById('play');
 function syncPlay() { playBtn.textContent = running ? '⏸ Pauza' : '▶ Trénuj'; playBtn.classList.toggle('active', running); }
