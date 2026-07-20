@@ -40,6 +40,17 @@ recognizable portrait of **Oliver** (the hero of [Snový Svet](https://github.co
 - Full control over architecture, encoding detail, activation, optimizer, loss, learning rate,
   batch size, and steps per frame.
 
+## 🧭 Bonus demo: Latent space explorer (`latent.html`)
+A second from-scratch demo: an **autoencoder** (`6912 → 128 → 32 → 2 → 32 → 128 → 6912`) trains
+live in the browser to compress each image down to just **two numbers** and decompress it back.
+- **Drag a cursor** around the 2D latent space and the decoder renders what lives there in real time.
+- A **mosaic background** is progressively decoded over the whole plane, so you can *see* the map
+  the network built; colored dots are the (augmented) training samples, encoded live.
+- Latent **noise injection** during training keeps the space smooth between images; each source
+  image gets 16 augmented variants (shift / zoom / rotate / mirror) so clusters form.
+- **🎬 Tour mode** animates the cursor between class centroids; you can also **add your own image**
+  as a new class mid-training and watch the map reorganize.
+
 ## Run locally
 It must be served over HTTP (so the browser can read the image pixels), not opened as `file://`:
 ```bash
