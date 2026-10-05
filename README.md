@@ -7,6 +7,11 @@ recognizable portrait of **Oliver** (the hero of [Snový Svet](https://github.co
 
 **▶ Live:** https://m1omg.github.io/neural-oliver/
 
+The page is available in **English and Slovak** — use the **🌐 EN / SK** button in the top-right corner.
+It picks Slovak automatically for Slovak/Czech browsers, English otherwise, and remembers your choice.
+You can also share a direct link: `?lang=en` or `?lang=sk`
+(e.g. https://m1omg.github.io/neural-oliver/?lang=en).
+
 ## How it works
 - **Engine:** a hand-written MLP with flat `Float32Array` weights and preallocated buffers —
   forward, backprop, and optimizer are all from scratch and allocation-free in the hot loop.
