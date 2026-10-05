@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🖼️🧠 Neurónka sa učí Olivera</title>
+<title data-i18n="title">🖼️🧠 Neurónka sa učí Olivera</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
 <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -37,12 +37,17 @@
     .stat .v { font: bold 16px monospace; color: #7effc0; }
     .hint { font-size: 12px; opacity: 0.62; margin-top: 12px; line-height: 1.5; }
     #err { color: #ff8080; font-size: 13px; margin-top: 10px; }
+    .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+    #langBtn { font-weight: bold; }
     #dl { display: none; color: #7effc0; font-size: 13px; margin-top: 10px; }
 </style>
 </head>
 <body>
-    <h1>🖼️🧠 Neurónka sa učí Olivera</h1>
-    <div class="sub">Sieť dostáva na vstup len súradnicu pixelu <b>(x, y)</b> a má uhádnuť jeho farbu <b>(R,G,B)</b>.
+    <div class="top">
+        <h1 data-i18n="title">🖼️🧠 Neurónka sa učí Olivera</h1>
+        <button id="langBtn" title="Switch language / Prepnúť jazyk">🌐 EN</button>
+    </div>
+    <div class="sub" data-i18n="sub">Sieť dostáva na vstup len súradnicu pixelu <b>(x, y)</b> a má uhádnuť jeho farbu <b>(R,G,B)</b>.
         Trénovaním na obrázku sa postupne „naučí" celého Olivera. Vyskúšaj <b>SIREN</b> (sínusové aktivácie),
         <b>Gaussove Fourierove črty</b>, postupné frekvencie (coarse→fine), vzorkovanie podľa chyby, rôzne
         optimalizátory a stratové funkcie — a sleduj mapu chýb a krivku straty naživo. Vieš aj nahrať vlastný obrázok 🙂</div>
@@ -50,17 +55,17 @@
     <div class="wrap">
         <div class="card" id="viewCard">
             <div class="canvases">
-                <div class="cwrap"><div class="t">🎯 Cieľ</div><canvas id="target" width="280" height="280"></canvas></div>
-                <div class="cwrap"><div class="t">🧠 Sieť kreslí</div><canvas id="recon" width="280" height="280"></canvas></div>
-                <div class="cwrap"><div class="t">🔥 Mapa chýb</div><canvas id="errmap" width="280" height="280"></canvas></div>
+                <div class="cwrap"><div class="t" data-i18n="cTarget">🎯 Cieľ</div><canvas id="target" width="280" height="280"></canvas></div>
+                <div class="cwrap"><div class="t" data-i18n="cRecon">🧠 Sieť kreslí</div><canvas id="recon" width="280" height="280"></canvas></div>
+                <div class="cwrap"><div class="t" data-i18n="cErr">🔥 Mapa chýb</div><canvas id="errmap" width="280" height="280"></canvas></div>
             </div>
-            <div class="cwrap" style="margin-top:12px"><div class="t">📉 Priebeh straty (log)</div><canvas id="chart" width="640" height="96"></canvas></div>
-            <a id="dl" download="neural-oliver.png">⬇ Uložiť HD render ako PNG</a>
+            <div class="cwrap" style="margin-top:12px"><div class="t" data-i18n="cLoss">📉 Priebeh straty (log)</div><canvas id="chart" width="640" height="96"></canvas></div>
+            <a id="dl" download="neural-oliver.png" data-i18n="dl">⬇ Uložiť HD render ako PNG</a>
             <div id="err"></div>
         </div>
 
         <div class="card panel">
-            <div class="label">Architektúra siete</div>
+            <div class="label" data-i18n="lArch">Architektúra siete</div>
             <div class="row" id="archBtns">
                 <button data-arch="48,48,48">48³</button>
                 <button data-arch="64,64,64" class="active">64³</button>
@@ -69,56 +74,56 @@
                 <button data-arch="192,160,128">192·160·128</button>
             </div>
 
-            <div class="label">Kódovanie vstupu</div>
+            <div class="label" data-i18n="lEnc">Kódovanie vstupu</div>
             <div class="row" id="encBtns">
-                <button data-enc="none">Žiadne</button>
+                <button data-enc="none" data-i18n="encNone">Žiadne</button>
                 <button data-enc="four">Fourier</button>
                 <button data-enc="rff" class="active">Gauss RFF</button>
             </div>
 
-            <div class="label">Detail kódovania (ostrosť)</div>
+            <div class="label" data-i18n="lQual">Detail kódovania (ostrosť)</div>
             <div class="row" id="qualBtns">
-                <button data-q="0">Nízky</button>
-                <button data-q="1" class="active">Stredný</button>
-                <button data-q="2">Vysoký</button>
+                <button data-q="0" data-i18n="q0">Nízky</button>
+                <button data-q="1" class="active" data-i18n="q1">Stredný</button>
+                <button data-q="2" data-i18n="q2">Vysoký</button>
                 <button data-q="3">Ultra</button>
             </div>
 
-            <div class="label">Aktivácia</div>
+            <div class="label" data-i18n="lAct">Aktivácia</div>
             <div class="row" id="actBtns">
                 <button data-act="tanh">tanh</button>
                 <button data-act="relu" class="active">ReLU</button>
                 <button data-act="sin">sin (SIREN)</button>
             </div>
 
-            <div class="label">Optimalizátor</div>
+            <div class="label" data-i18n="lOpt">Optimalizátor</div>
             <div class="row" id="optBtns">
                 <button data-opt="adam" class="active">Adam</button>
                 <button data-opt="adamw">AdamW</button>
-                <button data-opt="sgdm">SGD+hybnosť</button>
+                <button data-opt="sgdm" data-i18n="sgdm">SGD+hybnosť</button>
             </div>
 
-            <div class="label">Stratová funkcia</div>
+            <div class="label" data-i18n="lLoss">Stratová funkcia</div>
             <div class="row" id="lossBtns">
                 <button data-loss="mse" class="active">MSE</button>
                 <button data-loss="l1">L1</button>
                 <button data-loss="huber">Huber</button>
             </div>
 
-            <div class="label">Vylepšenia</div>
+            <div class="label" data-i18n="lExtras">Vylepšenia</div>
             <div class="row">
-                <button class="toggle active" id="tImp">🎯 Vzorkovanie podľa chyby</button>
-                <button class="toggle" id="tAnneal">🌊 Postupné frekvencie</button>
-                <button class="toggle" id="tSched">📉 LR rozvrh</button>
+                <button class="toggle active" id="tImp" data-i18n="tImp">🎯 Vzorkovanie podľa chyby</button>
+                <button class="toggle" id="tAnneal" data-i18n="tAnneal">🌊 Postupné frekvencie</button>
+                <button class="toggle" id="tSched" data-i18n="tSched">📉 LR rozvrh</button>
             </div>
 
-            <div class="label">Rýchlosť učenia</div>
+            <div class="label" data-i18n="lLr">Rýchlosť učenia</div>
             <div class="row"><input type="range" id="lr" min="-3.5" max="-0.3" step="0.05" value="-2"><span class="val" id="lrVal">0.010</span></div>
 
-            <div class="label">Krokov za snímok</div>
+            <div class="label" data-i18n="lSpeed">Krokov za snímok</div>
             <div class="row"><input type="range" id="speed" min="1" max="16" step="1" value="4"><span class="val" id="speedVal">4</span></div>
 
-            <div class="label">Veľkosť dávky (minibatch)</div>
+            <div class="label" data-i18n="lBatch">Veľkosť dávky (minibatch)</div>
             <div class="row"><input type="range" id="batch" min="5" max="10" step="1" value="8"><span class="val" id="batchVal">256</span></div>
 
             <div class="row" style="margin-top:14px">
@@ -127,20 +132,20 @@
             </div>
             <div class="row">
                 <button id="hd">✨ HD render</button>
-                <button id="upload">🖼 Vlastný obrázok</button>
+                <button id="upload" data-i18n="upload">🖼 Vlastný obrázok</button>
                 <input type="file" id="file" accept="image/*" style="display:none">
             </div>
 
             <div class="stats">
-                <div class="stat"><div class="k">Krok</div><div class="v" id="epoch">0</div></div>
-                <div class="stat"><div class="k">Strata (MSE)</div><div class="v" id="loss">—</div></div>
+                <div class="stat"><div class="k" data-i18n="sStep">Krok</div><div class="v" id="epoch">0</div></div>
+                <div class="stat"><div class="k" data-i18n="sLoss">Strata (MSE)</div><div class="v" id="loss">—</div></div>
                 <div class="stat"><div class="k">PSNR</div><div class="v" id="psnr">—</div></div>
-                <div class="stat"><div class="k">Parametre</div><div class="v" id="params">—</div></div>
-                <div class="stat"><div class="k">Krokov/s</div><div class="v" id="sps">—</div></div>
-                <div class="stat"><div class="k">Efekt. LR</div><div class="v" id="efflr">—</div></div>
+                <div class="stat"><div class="k" data-i18n="sParams">Parametre</div><div class="v" id="params">—</div></div>
+                <div class="stat"><div class="k" data-i18n="sSps">Krokov/s</div><div class="v" id="sps">—</div></div>
+                <div class="stat"><div class="k" data-i18n="sLr">Efekt. LR</div><div class="v" id="efflr">—</div></div>
             </div>
 
-            <div class="hint"><b>SIREN</b> = sínusové aktivácie so špeciálnou inicializáciou (ω₀=30) — ostré detaily priamo zo surových
+            <div class="hint" data-i18n="hint"><b>SIREN</b> = sínusové aktivácie so špeciálnou inicializáciou (ω₀=30) — ostré detaily priamo zo surových
                 súradníc, bez kódovania (prepne sa automaticky).
                 <b>Gauss RFF</b> = náhodné Fourierove črty (Tancik et al.). <b>Postupné frekvencie</b> = sieť sa najprv učí
                 hrubé tvary, detaily sa „odomykajú" postupne. <b>Vzorkovanie podľa chyby</b> = tréning sa sústredí na
@@ -341,13 +346,13 @@ function setupImage(img) {
     for (let i = 0; i < NPIX; i++) { target[i * 3] = d[i * 4] / 255; target[i * 3 + 1] = d[i * 4 + 1] / 255; target[i * 3 + 2] = d[i * 4 + 2] / 255; }
     errMap = new Float32Array(NPIX).fill(1);
     tdx.imageSmoothingEnabled = true; tdx.drawImage(img, 0, 0, dispW, dispH);
-    document.getElementById('err').textContent = '';
+    errKey = null; document.getElementById('err').textContent = '';
     rebuild();
 }
 function loadImage() {
     const img = new Image();
     img.onload = () => { setupImage(img); loop(); };
-    img.onerror = () => { document.getElementById('err').textContent = '⚠ oliver.png sa nenačítal (spusti cez server, nie file://).'; };
+    img.onerror = () => { showErr('errLoad'); };
     img.src = 'oliver.png';
 }
 
@@ -428,7 +433,7 @@ function rebuild() {
     net = makeNet(arch()); epoch = 0; lastLoss = 0;
     lossHist = []; smoothL = null; histStride = 1; strideCnt = 0;
     if (errMap) errMap.fill(1);
-    document.getElementById('params').textContent = countParams(net).toLocaleString('sk');
+    document.getElementById('params').textContent = countParams(net).toLocaleString(lang);
     if (target) { updateAnneal(); drawReconFull(); drawChart(); }
     updateStats(lr);
 }
@@ -449,7 +454,7 @@ function schedLr() {
 }
 
 function updateStats(effLr) {
-    document.getElementById('epoch').textContent = epoch.toLocaleString('sk');
+    document.getElementById('epoch').textContent = epoch.toLocaleString(lang);
     document.getElementById('loss').textContent = epoch ? lastLoss.toFixed(4) : '—';
     document.getElementById('psnr').textContent = epoch ? (10 * Math.log10(1 / Math.max(1e-6, lastLoss))).toFixed(1) + ' dB' : '—';
     document.getElementById('efflr').textContent = effLr.toPrecision(2);
@@ -493,11 +498,11 @@ hdBtn.addEventListener('click', () => {
             }
             octx.putImageData(img, 0, row); row++;
         }
-        if (row < H) { hdBtn.textContent = '✨ Render… ' + Math.round(row / H * 100) + '%'; requestAnimationFrame(step); return; }
+        if (row < H) { hdBtn.textContent = T('rendering') + Math.round(row / H * 100) + '%'; requestAnimationFrame(step); return; }
         reconCv.width = W; reconCv.height = H;                     // 2× backing store → ostrý náhľad
         rdx.drawImage(oc, 0, 0, W, H);
         dlLink.href = oc.toDataURL('image/png'); dlLink.style.display = 'inline-block';
-        hdBtn.textContent = '✨ HD render'; hdBusy = false;
+        hdBtn.textContent = T('hd'); hdBusy = false;
     })();
 });
 
@@ -508,7 +513,7 @@ fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadUserFil
 function loadUserFile(file) {
     const url = URL.createObjectURL(file), img = new Image();
     img.onload = () => { URL.revokeObjectURL(url); setupImage(img); };
-    img.onerror = () => { URL.revokeObjectURL(url); document.getElementById('err').textContent = '⚠ Tento súbor sa nedá načítať ako obrázok.'; };
+    img.onerror = () => { URL.revokeObjectURL(url); showErr('errFile'); };
     img.src = url;
 }
 const viewCard = document.getElementById('viewCard');
@@ -559,10 +564,79 @@ slider('speed', 'speedVal', v => '' + v, v => (speed = v, v));
 slider('batch', 'batchVal', v => '' + v, v => (batch = Math.pow(2, v), batch));
 
 const playBtn = document.getElementById('play');
-function syncPlay() { playBtn.textContent = running ? '⏸ Pauza' : '▶ Trénuj'; playBtn.classList.toggle('active', running); }
+function syncPlay() { playBtn.textContent = T(running ? 'pause' : 'train'); playBtn.classList.toggle('active', running); }
 playBtn.addEventListener('click', () => { running = !running; syncPlay(); });
-syncPlay();
 document.getElementById('reset').addEventListener('click', rebuild);
+
+// ==================== JAZYK / LANGUAGE (SK ⇄ EN) ====================
+const I18N = {
+    sk: {
+        title: '🖼️🧠 Neurónka sa učí Olivera',
+        sub: document.querySelector('[data-i18n="sub"]').innerHTML,
+        hint: document.querySelector('[data-i18n="hint"]').innerHTML,
+        cTarget: '🎯 Cieľ', cRecon: '🧠 Sieť kreslí', cErr: '🔥 Mapa chýb', cLoss: '📉 Priebeh straty (log)',
+        dl: '⬇ Uložiť HD render ako PNG',
+        lArch: 'Architektúra siete', lEnc: 'Kódovanie vstupu', encNone: 'Žiadne',
+        lQual: 'Detail kódovania (ostrosť)', q0: 'Nízky', q1: 'Stredný', q2: 'Vysoký',
+        lAct: 'Aktivácia', lOpt: 'Optimalizátor', sgdm: 'SGD+hybnosť', lLoss: 'Stratová funkcia',
+        lExtras: 'Vylepšenia', tImp: '🎯 Vzorkovanie podľa chyby', tAnneal: '🌊 Postupné frekvencie', tSched: '📉 LR rozvrh',
+        lLr: 'Rýchlosť učenia', lSpeed: 'Krokov za snímok', lBatch: 'Veľkosť dávky (minibatch)',
+        upload: '🖼 Vlastný obrázok',
+        sStep: 'Krok', sLoss: 'Strata (MSE)', sParams: 'Parametre', sSps: 'Krokov/s', sLr: 'Efekt. LR',
+        pause: '⏸ Pauza', train: '▶ Trénuj', hd: '✨ HD render', rendering: '✨ Render… ',
+        errLoad: '⚠ oliver.png sa nenačítal (spusti cez server, nie file://).',
+        errFile: '⚠ Tento súbor sa nedá načítať ako obrázok.'
+    },
+    en: {
+        title: '🖼️🧠 Neural network learns Oliver',
+        sub: 'The network only gets a pixel coordinate <b>(x, y)</b> as input and has to guess its color <b>(R,G,B)</b>.\n'
+           + '        By training on an image, it gradually “learns” all of Oliver. Try <b>SIREN</b> (sine activations),\n'
+           + '        <b>Gaussian Fourier features</b>, progressive frequencies (coarse→fine), error-driven sampling, different\n'
+           + '        optimizers and loss functions — and watch the error map and loss curve live. You can also upload your own image 🙂',
+        hint: '<b>SIREN</b> = sine activations with a special initialization (ω₀=30) — sharp details straight from raw\n'
+            + '                coordinates, no encoding needed (switched automatically).\n'
+            + '                <b>Gauss RFF</b> = random Fourier features (Tancik et al.). <b>Progressive frequencies</b> = the network first learns\n'
+            + '                coarse shapes, details are “unlocked” gradually. <b>Error-driven sampling</b> = training focuses on the\n'
+            + '                pixels where the network is most wrong (watch the error map!).',
+        cTarget: '🎯 Target', cRecon: '🧠 Network draws', cErr: '🔥 Error map', cLoss: '📉 Loss curve (log)',
+        dl: '⬇ Save HD render as PNG',
+        lArch: 'Network architecture', lEnc: 'Input encoding', encNone: 'None',
+        lQual: 'Encoding detail (sharpness)', q0: 'Low', q1: 'Medium', q2: 'High',
+        lAct: 'Activation', lOpt: 'Optimizer', sgdm: 'SGD+momentum', lLoss: 'Loss function',
+        lExtras: 'Improvements', tImp: '🎯 Error-driven sampling', tAnneal: '🌊 Progressive frequencies', tSched: '📉 LR schedule',
+        lLr: 'Learning rate', lSpeed: 'Steps per frame', lBatch: 'Batch size (minibatch)',
+        upload: '🖼 Custom image',
+        sStep: 'Step', sLoss: 'Loss (MSE)', sParams: 'Parameters', sSps: 'Steps/s', sLr: 'Eff. LR',
+        pause: '⏸ Pause', train: '▶ Train', hd: '✨ HD render', rendering: '✨ Rendering… ',
+        errLoad: '⚠ oliver.png failed to load (run it via a server, not file://).',
+        errFile: '⚠ This file can’t be loaded as an image.'
+    }
+};
+// poradie: ?lang=en|sk v URL → uložená voľba → jazyk prehliadača (sk/cs → SK, inak EN)
+function pickLang() {
+    const q = new URLSearchParams(location.search).get('lang');
+    if (q in I18N) return q;
+    try { const s = localStorage.getItem('lang'); if (s in I18N) return s; } catch (e) {}
+    return /^(sk|cs)\b/i.test(navigator.language || '') ? 'sk' : 'en';
+}
+let lang = pickLang(), errKey = null;
+const T = k => I18N[lang][k];
+function showErr(k) { errKey = k; document.getElementById('err').textContent = T(k); }
+function applyLang() {
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = T(el.dataset.i18n); });
+    document.getElementById('langBtn').textContent = lang === 'sk' ? '🌐 EN' : '🌐 SK';
+    if (errKey) showErr(errKey);
+    if (!hdBusy) hdBtn.textContent = T('hd');
+    syncPlay();
+    if (net) updateStats(schedLr()), document.getElementById('params').textContent = countParams(net).toLocaleString(lang);
+}
+document.getElementById('langBtn').addEventListener('click', () => {
+    lang = lang === 'sk' ? 'en' : 'sk';
+    try { localStorage.setItem('lang', lang); } catch (e) {}
+    applyLang();
+});
+applyLang();
 
 loadImage();
 </script>
